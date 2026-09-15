@@ -15,7 +15,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.types import ErrorEvent
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
-from config import BOT_TOKEN, PROXY_URL, ADMIN_IDS, CATALOG_PATH
+from config import BOT_TOKEN, PROXY_URL, ADMIN_IDS, CATALOG_PATH, APP_VERSION
 from config import TON_CHECK_INTERVAL
 from models.database import db
 from handlers.user_handlers import router as user_router
@@ -1134,8 +1134,10 @@ async def pending_account_notifier(bot: Bot):
 # сервер не стартует и поведение не меняется.
 
 async def _health_ok(request):
+    """v27.2: отдаём версию — откройте https://<сервис>.onrender.com/health
+    в браузере: если видите 'ok v27.2', на хостинге свежий код."""
     from aiohttp import web
-    return web.Response(text="ok")
+    return web.Response(text=f"ok v{APP_VERSION}")
 
 
 # v27: корень больше не «пустой ok» — люди, открывшие URL сервиса на Render,

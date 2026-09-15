@@ -37,6 +37,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import re
 import time
 from datetime import datetime, timedelta
@@ -48,6 +49,7 @@ from aiogram.types import LabeledPrice
 
 from config import (
     ADMIN_IDS,
+    APP_VERSION,
     BOT_TOKEN,
     DIGISELLER_CURRENCY,
     PROMO_CODE_ENABLED,
@@ -104,8 +106,21 @@ logger = logging.getLogger(__name__)
 WEBAPP_DIR = Path(__file__).resolve().parent / "webapp"
 
 # Окно жизни initData (сек). Telegram рекомендует проверять свежесть,
-# иначе украденный initData валиден вечно. 60 минут — консервативно.
-INITDATA_MAX_AGE = 60 * 60
+# иначе украденный initData валиден вечно.
+#
+# v27.2: было 60 минут — слишком агрессивно для реальных сценариев:
+# Mini App держат открытым часами, а мобильные клиенты при повторном
+# открытии из чата часто подсовывают тот же (старый) initData вместо
+# свежего → юзер видел «сессия устарела» сразу после открытия.
+# Подпись при этом ВСЕГДА проверяется полностью; окно защищает только
+# от replay украденной строки, а initData авторизует лишь самого юзера.
+# 24 часа — практичный компромисс (настройка INITDATA_MAX_AGE_HOURS).
+try:
+    INITDATA_MAX_AGE = int(float(os.getenv("INITDATA_MAX_AGE_HOURS", "24")) * 3600)
+except ValueError:
+    INITDATA_MAX_AGE = 24 * 3600
+if INITDATA_MAX_AGE < 300:  # sanity: меньше 5 минут не даём ставить
+    INITDATA_MAX_AGE = 24 * 3600
 
 # Rate-limit создания заказов: не более 5 заказов за 10 минут на юзера.
 _ORDER_WINDOW = 600
@@ -273,11 +288,13 @@ async def api_catalog(request: web.Request) -> web.Response:
         logger.error(f"webapp api_catalog: catalog read failed: {e}")
         return _err(500, "Каталог временно недоступен")
     active = [s for s in services if s.get("active", True)]
-    # v27: bot_username публично — демо-шлюзу нужен линк «Открыть в Telegram»
+    # v27: bot_username публично — демо-шлюзу нужен линк «Открыть в Telegram»;
+    # v27.2: версия — мгновенная проверка, что на хостинге свежий код
     return web.json_response({
         "ok": True,
         "services": active,
         "bot_username": request.app["bot_username"],
+        "version": APP_VERSION,
     })
 
 

@@ -1,0 +1,18 @@
+# Секреты — НИКОГДА не коммитить
+.env
+
+# Базы данных
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Служебное
+.DS_Store
+Thumbs.db
