@@ -20,7 +20,18 @@ load_dotenv(_SCRIPT_DIR / ".env")
 # ─── Telegram Bot ──────────────────────────────────────────────────
 
 # Telegram Bot Token (get from @BotFather)
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+# v27.4: панели хостингов (Render и др.) часто получают значение вместе с
+# обрамляющими кавычками или пробелами: BOT_TOKEN="123:AA..." — визуально
+# «всё совпадает», а getMe падает и подписи initData отвергаются. Срезаем
+# пробелы по краям и одну пару обрамляющих кавычек.
+def _clean_secret_env(name: str, default: str = "") -> str:
+    v = os.getenv(name, default) or ""
+    v = v.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+        v = v[1:-1].strip()
+    return v
+
+BOT_TOKEN = _clean_secret_env("BOT_TOKEN")
 
 # Admin Telegram IDs (comma-separated, with error handling)
 _raw_admin_ids = os.getenv("ADMIN_IDS", "")
@@ -255,7 +266,7 @@ STORE_NAME = os.getenv("STORE_NAME", "SUBSTORE").strip() or "SUBSTORE"
 
 # Версия релиза — отдаётся в /health и /api/catalog. Быстрая проверка,
 # что на хостинге крутится именно свежий код: откройте /health в браузере.
-APP_VERSION = os.getenv("APP_VERSION", "27.2").strip() or "27.2"
+APP_VERSION = os.getenv("APP_VERSION", "27.4").strip() or "27.4"
 
 # Drip-напоминания (1ч/24ч/72ч для непокупавших) приходят только юзерам,
 # зарегистрированным НЕ старее этого срока. Старая база «мёртвых» юзеров

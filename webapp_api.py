@@ -42,7 +42,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, unquote_plus
 
 from aiohttp import web
 from aiogram.types import LabeledPrice
@@ -174,7 +174,7 @@ def _user_from_signed_initdata(init_data: str) -> dict | None:
         for chunk in str(init_data).split("&"):
             key, _, value = chunk.partition("=")
             if key == "user":
-                u = json.loads(unquote(value))
+                u = json.loads(unquote_plus(value))
                 if isinstance(u, dict) and u.get("id"):
                     return u
     except (json.JSONDecodeError, ValueError):
@@ -245,7 +245,15 @@ def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[d
     secret = HMAC-SHA256(key="WebAppData", msg=bot_token)
     hash   = HMAC-SHA256(key=secret,   msg=data_check_string)
     где data_check_string — все поля кроме hash, отсортированные по ключу,
-    значения в исходном (urlencoded) виде, разделитель '\n'.
+    разделитель '\n'.
+
+    v27.4 — НАЙДЕНА ПРИЧИНА «bad signature» при верном токене: Telegram
+    подписывает строку из ДЕКОДИРОВАННЫХ значений (user — обычный JSON,
+    а не %7B%22id%22...) — таков и пример в доках, и parse_qsl в aiogram.
+    Раньше мы строили строку из raw-urlencoded значений — hash не сходился
+    НИ НА ОДНОМ реальном initData, а до v27.3 ошибка маскировалась текстом
+    «сессия устарела». Теперь пробуем декодированный вариант (основной) и
+    raw (фолбэк для экзотических транспортиров).
     """
     if not init_data or not bot_token:
         return None, "invalid"
@@ -264,23 +272,38 @@ def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[d
     if not received_hash or not pairs:
         return None, "invalid"
     pairs.sort(key=lambda kv: kv[0])
-    data_check_string = "\n".join(f"{k}={v}" for k, v in pairs)
+
+    # v27.4: основной вариант — декодированные значения (конвенция Telegram:
+    # aiogram/parse_qsl и офиц. PHP-пример с parse_str это подтверждают),
+    # фолбэк — raw, если initData пришёл уже декодированным.
+    dcs_dec = "\n".join(f"{k}={unquote_plus(v)}" for k, v in pairs)
+    dcs_raw = "\n".join(f"{k}={v}" for k, v in pairs)
+    variants = [dcs_dec] if dcs_dec == dcs_raw else [dcs_dec, dcs_raw]
 
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
-    calc_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(calc_hash, received_hash):
+    matched_dcs = None
+    for i, dcs in enumerate(variants):
+        calc_hash = hmac.new(secret_key, dcs.encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(calc_hash, received_hash):
+            matched_dcs = "decoded" if i == 0 else "raw"
+            break
+    if matched_dcs is None:
         # v27.3: тихие отказы не оставляли следов в логах — юзер видел
         # «сессия устарела», а в Render было пусто. Теперь видно причину.
         logger.warning(
             f"initData: bad signature (len={len(init_data)}, "
-            f"token_set={bool(bot_token)}) — проверьте BOT_TOKEN на хостинге"
+            f"token_set={bool(bot_token)}) — initData подписан ДРУГИМ ботом "
+            f"или повреждён при передаче; токен сервиса проверьте через "
+            f"/health (bot=@...)"
         )
         return None, "invalid"
+    logger.debug(f"initData: signature OK (dcs={matched_dcs})")
 
-    # Свежесть подписи — защита от replay старых initData
-    raw = dict(pairs)
+    # Свежесть подписи — защита от replay старых initData.
+    # Поля после валидации читаем в ДЕКОДИРОВАННОМ виде (та же конвенция).
+    fields = {k: unquote_plus(v) for k, v in pairs}
     try:
-        auth_date = int(raw.get("auth_date", "0"))
+        auth_date = int(fields.get("auth_date", "0"))
     except ValueError:
         return None, "invalid"
     if auth_date < time.time() - INITDATA_MAX_AGE:
@@ -291,7 +314,7 @@ def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[d
         return None, "expired"
 
     try:
-        user = json.loads(unquote(raw.get("user", "")))
+        user = json.loads(fields.get("user", ""))
     except (json.JSONDecodeError, ValueError):
         return None
     if not isinstance(user, dict) or not user.get("id"):
