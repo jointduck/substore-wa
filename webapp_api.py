@@ -122,6 +122,96 @@ except ValueError:
 if INITDATA_MAX_AGE < 300:  # sanity: меньше 5 минут не даём ставить
     INITDATA_MAX_AGE = 24 * 3600
 
+
+# ─── Сессионные токены (v27.3) ──────────────────────────────────────
+# Подпись initData ВСЕГДА проверяется, когда она приходит. Но мобильные
+# клиенты при повторном открытии Mini App подсовывают старый initData,
+# а location.reload() не всегда обновляет его — юзер ловил «сессия
+# устарела» на ровном месте (например при оформлении заказа).
+# Решение: после первой успешной валидации выдаём подписанный токен
+# (HMAC от BOT_TOKEN) на SESSION_TOKEN_TTL. Все /api/* авторизуются
+# И initData (если свеж/валиден), И токеном — «сессия устарела»
+# исчезает как класс ошибок. Токен без данных (только user_id+срок),
+# компрометация равна компрометации initData и кончается через TTL.
+SESSION_TOKEN_TTL = 7 * 24 * 3600
+
+
+def _session_secret() -> bytes:
+    return hmac.new(b"WebAppSession", BOT_TOKEN.encode(), hashlib.sha256).digest()
+
+
+def make_session_token(user_id: int) -> str:
+    """Подписанный токен сессии: uid.exp.sig (HMAC-SHA256/32 hex)."""
+    exp = int(time.time()) + SESSION_TOKEN_TTL
+    msg = f"{user_id}:{exp}".encode()
+    sig = hmac.new(_session_secret(), msg, hashlib.sha256).hexdigest()[:32]
+    return f"{user_id}.{exp}.{sig}"
+
+
+def verify_session_token(tok: str) -> int | None:
+    """user_id или None (битый / подделанный / просроченный)."""
+    if not tok:
+        return None
+    try:
+        uid_s, exp_s, sig = str(tok).split(".", 2)
+        uid, exp = int(uid_s), int(exp_s)
+    except (ValueError, AttributeError):
+        return None
+    if exp < time.time():
+        return None
+    expect = hmac.new(
+        _session_secret(), f"{uid}:{exp}".encode(), hashlib.sha256
+    ).hexdigest()[:32]
+    if not hmac.compare_digest(expect, sig):
+        return None
+    return uid
+
+
+def _user_from_signed_initdata(init_data: str) -> dict | None:
+    """user из initData, чья подпись УЖЕ проверена (reason='expired'):
+    hash сверён, окно — нет. Раз подпись валидна, user полю доверять можно."""
+    try:
+        for chunk in str(init_data).split("&"):
+            key, _, value = chunk.partition("=")
+            if key == "user":
+                u = json.loads(unquote(value))
+                if isinstance(u, dict) and u.get("id"):
+                    return u
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return None
+
+
+def authenticate_user(body: dict) -> tuple[dict | None, str | None]:
+    """Единая авторизация для всех /api/*: initData + сессионный токен.
+
+    Порядок:
+      1) свежий валидный initData — обычный путь;
+      2) подпись валидна, но старше окна (expired) + живой токен с тем
+         же user_id — пропускаем (подпись Telegram проверена);
+      3) initData пуст/бит, но живой токен — пропускаем (токен выдан
+         только после успешной валидации);
+      4) иначе отказ с причиной (invalid/expired).
+    """
+    init_data = str(body.get("initData", "") or "")
+    user, reason = validate_init_data_ex(init_data)
+    if user:
+        return user, None
+
+    tok_uid = verify_session_token(str(body.get("sessionToken", "") or ""))
+    if tok_uid is None:
+        return None, reason
+
+    if reason == "expired":
+        stale = _user_from_signed_initdata(init_data)
+        if stale and int(stale["id"]) == tok_uid:
+            return stale, None
+        return None, "expired"  # подпись и токен от разных юзеров
+
+    # invalid или пустой initData — токен сам по себе достаточен
+    return {"id": tok_uid, "first_name": "", "username": ""}, None
+
+
 # Rate-limit создания заказов: не более 5 заказов за 10 минут на юзера.
 _ORDER_WINDOW = 600
 _ORDER_LIMIT = 5
@@ -173,13 +263,18 @@ def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[d
 
     if not received_hash or not pairs:
         return None, "invalid"
-
     pairs.sort(key=lambda kv: kv[0])
     data_check_string = "\n".join(f"{k}={v}" for k, v in pairs)
 
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
     calc_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(calc_hash, received_hash):
+        # v27.3: тихие отказы не оставляли следов в логах — юзер видел
+        # «сессия устарела», а в Render было пусто. Теперь видно причину.
+        logger.warning(
+            f"initData: bad signature (len={len(init_data)}, "
+            f"token_set={bool(bot_token)}) — проверьте BOT_TOKEN на хостинге"
+        )
         return None, "invalid"
 
     # Свежесть подписи — защита от replay старых initData
@@ -189,6 +284,10 @@ def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[d
     except ValueError:
         return None, "invalid"
     if auth_date < time.time() - INITDATA_MAX_AGE:
+        logger.info(
+            f"initData: expired (age={int(time.time()) - auth_date}s, "
+            f"window={INITDATA_MAX_AGE}s) — пробуем сессионный токен"
+        )
         return None, "expired"
 
     try:
@@ -214,9 +313,19 @@ def _err(status: int, message: str):
 def _auth_err(reason: str | None):
     """401 для TMA. expired=true — фронту можно молча перезагрузиться
     (свежий initData), иначе подпись реально битая."""
-    payload = {"ok": False, "error": "Сессия устарела. Переоткройте магазин через бота."}
     if reason == "expired":
-        payload["expired"] = True
+        payload = {
+            "ok": False,
+            "error": "Сессия устарела. Переоткройте магазин через бота.",
+            "expired": True,
+        }
+    else:
+        # v27.3: раньше и «битая подпись» подписывалась как «сессия
+        # устарела» — вводило в заблуждение при диагностике
+        payload = {
+            "ok": False,
+            "error": "Не удалось подтвердить личность. Переоткройте магазин через бота.",
+        }
     return web.json_response(payload, status=401)
 
 
@@ -263,7 +372,7 @@ async def _auth_order(request: web.Request, body: dict) -> tuple[dict | None, di
 
     Возвращает (user, order, None) при успехе или (None, None, ответ-ошибку).
     """
-    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
+    user, _reason = authenticate_user(body)
     if not user:
         return None, None, _auth_err(_reason)
 
@@ -321,7 +430,7 @@ async def api_session(request: web.Request) -> web.Response:
     if body is None:
         return _err(400, "Ожидался JSON")
 
-    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
+    user, _reason = authenticate_user(body)
     if not user:
         if _reason == "expired":
             return _auth_err(_reason)
@@ -349,6 +458,9 @@ async def api_session(request: web.Request) -> web.Response:
             "username": user.get("username", ""),
         },
         "store_name": STORE_NAME,
+        # v27.3: токен сессии на 7 дней — все /api/* дальше авторизуются
+        # им, если мобильный клиент подсовывает старый initData
+        "session_token": make_session_token(user_id),
         "bot_username": request.app["bot_username"],
         "offer_url": "https://disk.yandex.ru/i/HWpCZ1blH8fyUw",
         "welcome_discount": {"discount_pct": welcome["discount_pct"]} if welcome else None,
@@ -376,7 +488,7 @@ async def api_order(request: web.Request) -> web.Response:
     if body is None:
         return _err(400, "Ожидался JSON")
 
-    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
+    user, _reason = authenticate_user(body)
     if not user:
         return _auth_err(_reason)
 
@@ -579,7 +691,7 @@ async def api_orders_list(request: web.Request) -> web.Response:
     body = await _read_body(request)
     if body is None:
         return _err(400, "Ожидался JSON")
-    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
+    user, _reason = authenticate_user(body)
     if not user:
         return _auth_err(_reason)
 
@@ -1223,7 +1335,7 @@ async def api_profile(request: web.Request) -> web.Response:
     body = await _read_body(request)
     if body is None:
         return _err(400, "Ожидался JSON")
-    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
+    user, _reason = authenticate_user(body)
     if not user:
         return _auth_err(_reason)
 
