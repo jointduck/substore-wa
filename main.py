@@ -1134,10 +1134,25 @@ async def pending_account_notifier(bot: Bot):
 # сервер не стартует и поведение не меняется.
 
 async def _health_ok(request):
-    """v27.2: отдаём версию — откройте https://<сервис>.onrender.com/health
-    в браузере: если видите 'ok v27.2', на хостинге свежий код."""
+    """v27.3: версия + ЛИЧНОСТЬ бота этого сервиса.
+
+    Откройте https://<сервис>.onrender.com/health в браузере:
+      «ok v27.3 bot=@MyShopBot (id 123456789)» — бот ДОЛЖЕН совпадать с
+      тем, из чата которого открывается магазин. Если показан другой бот
+      или «bot=? (getMe failed)» — в Environment ЭТОГО сервиса чужой /
+      неверный BOT_TOKEN → все подписи initData отвергаются с «bad
+      signature» (та самая «сессия устарела / личность не подтверждена»).
+    """
     from aiohttp import web
-    return web.Response(text=f"ok v{APP_VERSION}")
+    app = request.app
+    bid = app.get("bot_id") or ""
+    if bid:
+        bot_part = f" bot=@{(app.get('bot_username') or '').lstrip('@')} (id {bid})"
+    elif app.get("bot_checked"):
+        bot_part = " bot=? (getMe failed — проверьте BOT_TOKEN)"
+    else:
+        bot_part = ""
+    return web.Response(text=f"ok v{APP_VERSION}{bot_part}")
 
 
 # v27: корень больше не «пустой ok» — люди, открывшие URL сервиса на Render,
@@ -1177,14 +1192,29 @@ async def start_health_server(bot=None):
     # Блок health-сервера должен работать даже в изоляции (test_health_server
     # исполняет его без bot_fixed в sys.path) — поэтому всё в try/except.
     app["bot_username"] = ""
+    app["bot_id"] = ""
+    app["bot_checked"] = False
     try:
         from config import BOT_USERNAME
         _bu = BOT_USERNAME
-        if not _bu and bot is not None:
+        if bot is not None:
+            # v27.3: getMe при старте — СЕБЯЛИЧНОСТЬ сервиса для /health.
+            # Если BOT_TOKEN чужой/битый, getMe упадёт и /health покажет
+            # «bot=?» — мгновенная диагностика «bad signature».
+            app["bot_checked"] = True
             try:
-                _bu = (await bot.get_me()).username
-            except Exception:
-                _bu = ""
+                me = await bot.get_me()
+                _bu = _bu or me.username
+                app["bot_id"] = str(me.id)
+                logger.info(
+                    f"Shop service identity: bot=@{me.username} (id {me.id}) — "
+                    f"тот же бот виден в /health; initData подписывается ЭТИМ ботом"
+                )
+            except Exception as e:
+                logger.error(
+                    f"getMe failed — BOT_TOKEN недействителен ДЛЯ ЭТОГО СЕРВИСА: {e}. "
+                    f"Магазин будет отдавать 401 «bad signature» при авторизации."
+                )
         app["bot_username"] = (_bu or "").lstrip("@")
     except Exception:
         pass

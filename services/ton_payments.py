@@ -159,26 +159,74 @@ async def get_ton_usd_rate() -> float:
 
 
 async def get_gram_usd_rate() -> float:
-    """Get current Gram/USD rate from CoinGecko or fallback."""
+    """Get current Gram/USD rate. Tries several key-free sources in order.
+
+    v27.2: было 2 источника и оба часто падали на хостинге:
+      - CoinGecko жёстко режет лимиты для IP дата-центров (Render, 429);
+      - фолбэк Toncenter требовал TONCENTER_API_KEY — без ключа сразу отказ.
+      Итог: вечный запасной курс 3.5 («курс не синхронизируется»).
+    Теперь цепочка: CoinGecko → TonAPI → OKX → Toncenter → запасное значение.
+    TonAPI и OKX работают без всяких ключей.
+    """
     now = time.time()
     if _rates_cache["gram_usd"] and now - _rates_cache["gram_usd_updated"] < _RATES_CACHE_TTL:
         return _rates_cache["gram_usd"]
 
-    # Primary: CoinGecko
-    try:
-        async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
+        # 1) CoinGecko
+        try:
             url = "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd"
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                data = await resp.json()
-                rate = data["the-open-network"]["usd"]
-                _rates_cache["gram_usd"] = rate
-                _rates_cache["gram_usd_updated"] = now
-                _using_fallback_rate["gram_usd"] = False
-                return rate
-    except Exception as e:
-        logger.warning(f"Failed to get Gram/USD rate from CoinGecko: {e}")
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rate = float(data["the-open-network"]["usd"])
+                    if rate > 0:
+                        _rates_cache["gram_usd"] = rate
+                        _rates_cache["gram_usd_updated"] = now
+                        _using_fallback_rate["gram_usd"] = False
+                        return rate
+                else:
+                    logger.debug(f"CoinGecko rate status {resp.status} (лимиты/блок IP?)")
+        except Exception as e:
+            logger.debug(f"CoinGecko rate failed: {e}")
 
-    # Fallback: Toncenter
+        # 2) TonAPI (tonapi.io) — без ключа
+        try:
+            url = "https://tonapi.io/v2/rates?tokens=ton&currencies=usd"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rate = float(data["rates"]["TON"]["prices"]["USD"])
+                    if rate > 0:
+                        logger.info(f"Gram/USD from TonAPI: {rate}")
+                        _rates_cache["gram_usd"] = rate
+                        _rates_cache["gram_usd_updated"] = now
+                        _using_fallback_rate["gram_usd"] = False
+                        return rate
+                else:
+                    logger.debug(f"TonAPI rates status {resp.status}")
+        except Exception as e:
+            logger.debug(f"TonAPI rates failed: {e}")
+
+        # 3) OKX спот TON-USDT (USDT ≈ USD) — без ключа
+        try:
+            url = "https://www.okx.com/api/v5/market/ticker?instId=TON-USDT"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rate = float(data["data"][0]["last"])
+                    if rate > 0:
+                        logger.info(f"Gram/USD from OKX: {rate}")
+                        _rates_cache["gram_usd"] = rate
+                        _rates_cache["gram_usd_updated"] = now
+                        _using_fallback_rate["gram_usd"] = False
+                        return rate
+                else:
+                    logger.debug(f"OKX ticker status {resp.status}")
+        except Exception as e:
+            logger.debug(f"OKX ticker failed: {e}")
+
+    # 4) Toncenter (требует TONCENTER_API_KEY)
     try:
         result = await _toncenter_get("getExchangeRate", {"currency": "TON"})
         if result.get("ok"):
@@ -199,30 +247,57 @@ async def get_gram_usd_rate() -> float:
     if not _using_fallback_rate.get("gram_usd"):
         logger.warning(
             f"⚠️ USED STALE/FALLBACK Gram/USD rate: {fallback} — live rate unavailable! "
-            f"Check CoinGecko and Toncenter API connectivity."
+            f"Check CoinGecko/TonAPI/OKX connectivity in Render logs."
         )
         _using_fallback_rate["gram_usd"] = True
     return fallback
 
 
 async def get_usd_rub_rate() -> float:
-    """Get current USD/RUB rate from CoinGecko (USDT/RUB)."""
+    """Get current USD/RUB rate. CoinGecko → open.er-api.com → fallback.
+
+    v27.2: добавлен запасной er-api (без ключа) — CoinGecko на Render
+    часто отдаёт 429, а без курса RUB карточные суммы считались неверно.
+    """
     now = time.time()
     if _rates_cache["usd_rub"] and now - _rates_cache["usd_rub_updated"] < _RATES_CACHE_TTL:
         return _rates_cache["usd_rub"]
 
-    try:
-        async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
+        # 1) CoinGecko (USDT/RUB)
+        try:
             url = "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub"
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                data = await resp.json()
-                rate = data["tether"]["rub"]
-                _rates_cache["usd_rub"] = rate
-                _rates_cache["usd_rub_updated"] = now
-                _using_fallback_rate["usd_rub"] = False
-                return rate
-    except Exception as e:
-        logger.warning(f"Failed to get USD/RUB rate: {e}")
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rate = float(data["tether"]["rub"])
+                    if rate > 0:
+                        _rates_cache["usd_rub"] = rate
+                        _rates_cache["usd_rub_updated"] = now
+                        _using_fallback_rate["usd_rub"] = False
+                        return rate
+                else:
+                    logger.debug(f"CoinGecko USDT/RUB status {resp.status}")
+        except Exception as e:
+            logger.debug(f"CoinGecko USDT/RUB failed: {e}")
+
+        # 2) open.er-api.com — без ключа, курс доллара к рублю
+        try:
+            url = "https://open.er-api.com/v6/latest/USD"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rate = float(data["rates"]["RUB"])
+                    if rate > 0:
+                        logger.info(f"USD/RUB from er-api: {rate}")
+                        _rates_cache["usd_rub"] = rate
+                        _rates_cache["usd_rub_updated"] = now
+                        _using_fallback_rate["usd_rub"] = False
+                        return rate
+                else:
+                    logger.debug(f"er-api status {resp.status}")
+        except Exception as e:
+            logger.debug(f"er-api USD/RUB failed: {e}")
 
     # v17: аналогично gram_usd — дефолт .get() был мёртв (ключ существовал
     # со значением 0). Ноль приводил к rub_amount=0 на карточной оплате:
@@ -232,7 +307,7 @@ async def get_usd_rub_rate() -> float:
     if not _using_fallback_rate.get("usd_rub"):
         logger.warning(
             f"⚠️ USED STALE/FALLBACK USD/RUB rate: {fallback} — live rate unavailable! "
-            f"Check CoinGecko API connectivity."
+            f"Check CoinGecko/er-api connectivity."
         )
         _using_fallback_rate["usd_rub"] = True
     return fallback

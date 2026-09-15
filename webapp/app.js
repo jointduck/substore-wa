@@ -183,7 +183,12 @@
     stack: [],        // навигационный стек
     pollTimer: null,  // поллинг статуса заказа
     payPoll: null,    // поллинг заказа на экране оплаты
-    tickTimer: null   // таймер обратного отсчёта
+    tickTimer: null,  // таймер обратного отсчёта
+    /* v27.3: серверный токен сессии (7 дней) — авторизует запросы,
+       когда мобильный Telegram подсовывает старый initData */
+    sessionToken: (function () {
+      try { return localStorage.getItem("tmaSessionToken") || ""; } catch (e) { return ""; }
+    })()
   };
 
   /* ── Утилиты ── */
@@ -220,6 +225,18 @@
     var timer = setTimeout(function () { ctl.abort(); }, opts.timeout || 15000);
     opts.signal = ctl.signal;
     opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    /* v27.3: во все POST-запросы добавляем серверный токен сессии —
+       сервер примет его, если Telegram отдал старый initData */
+    if (state.sessionToken && opts.method === "POST" &&
+        typeof opts.body === "string" && opts.body.charAt(0) === "{") {
+      try {
+        var b = JSON.parse(opts.body);
+        if (!b.sessionToken) {
+          b.sessionToken = state.sessionToken;
+          opts.body = JSON.stringify(b);
+        }
+      } catch (e) { /* битый body — пусть сервер ответит как обычно */ }
+    }
     return fetch(path, opts).then(function (r) {
       clearTimeout(timer);
       return r.json().catch(function () { return { ok: false, error: "Некорректный ответ сервера" }; });
@@ -1398,6 +1415,9 @@
         state.services = res.services.filter(function (s) { return s.active !== false; });
         /* v27: публичный username бота — для демо-шлюза «Открыть в Telegram» */
         if (res.bot_username) state.cfg.bot_username = res.bot_username;
+        /* v27.2: маркер версии — в консоли телефона/компа видно, какой
+           код крутится на хостинге (свежий деплой = v27.2+) */
+        if (res.version) { state.cfg.version = res.version; console.log("[TMA] server v" + res.version); }
         if (DEMO) showDemoGate();
         renderCatalog();
         watchCustomEmoji();
@@ -1420,6 +1440,11 @@
       body: JSON.stringify({ initData: tg.initData })
     }).then(function (res) {
       if (!res || !res.ok) return;
+      /* v27.3: токен сессии — храним и шлём во все запросы */
+      if (res.session_token && res.session_token !== state.sessionToken) {
+        state.sessionToken = res.session_token;
+        try { localStorage.setItem("tmaSessionToken", state.sessionToken); } catch (e) {}
+      }
       state.cfg.bot_username = res.bot_username || state.cfg.bot_username;
       state.cfg.store_name = res.store_name || state.cfg.store_name;
       state.cfg.offer_url = res.offer_url || state.cfg.offer_url;
