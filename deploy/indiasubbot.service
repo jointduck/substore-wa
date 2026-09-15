@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────
+#  systemd-юнит для магазина INDIA SUBBOT (бот + Mini App)
+#
+#  Установка (под root или через sudo):
+#    1. Скопируй проект в /opt/indiasubbot:
+#         sudo mv bot_fixed /opt/indiasubbot
+#    2. Отредактируй пути/пользователя ниже, если отличаются.
+#    3. Установи и запусти:
+#         sudo cp deploy/indiasubbot.service /etc/systemd/system/
+#         sudo systemctl daemon-reload
+#         sudo systemctl enable --now indiasubbot
+#    4. Логи и статус:
+#         systemctl status indiasubbot
+#         journalctl -u indiasubbot -f
+# ─────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=INDIA SUBBOT — Telegram bot + Mini App store
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Пользователь, от которого работает бот (рекомендуется выделенный юзер)
+User=root
+Group=root
+# Папка проекта (где лежит main.py)
+WorkingDirectory=/opt/indiasubbot
+# Запуск системным python (зависимости: pip install -r requirements.txt)
+# Если используешь venv — замени на:
+#   ExecStart=/opt/indiasubbot/venv/bin/python /opt/indiasubbot/main.py
+ExecStart=/usr/bin/python3 /opt/indiasubbot/main.py
+# Аккуратная остановка: aiogram сам завершает поллинг по SIGTERM
+KillSignal=SIGTERM
+TimeoutStopSec=30
+# Автоперезапуск после падения/перезагрузки сервера
+Restart=always
+RestartSec=5
+# PORT читается из .env; продублирован здесь на всякий случай
+Environment=PORT=8000
+
+[Install]
+WantedBy=multi-user.target

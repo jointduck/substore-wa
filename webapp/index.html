@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SUBSTORE — цифровые подписки</title>
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg-glow" aria-hidden="true"></div>
+<div class="loadbar" aria-hidden="true"></div>
+
+<!-- ICON_SPRITE_START -->
+<!-- ICON_SPRITE: брендовые и UI-иконки (simple-icons + рукописные). Не удалять. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+    <symbol id="i-spotify" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></symbol>
+    <symbol id="i-youtube" viewBox="0 0 24 24"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></symbol>
+    <symbol id="i-applemusic" viewBox="0 0 24 24"><path fill="currentColor" d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15c-.04-.003-.083-.01-.124-.013H5.986c-.152.01-.303.017-.455.026-.747.043-1.49.123-2.193.4-1.336.53-2.3 1.452-2.865 2.78-.192.448-.292.925-.363 1.408-.056.392-.088.785-.1 1.18 0 .032-.007.062-.01.093v12.223c.01.14.017.283.027.424.05.815.154 1.624.497 2.373.65 1.42 1.738 2.353 3.234 2.801.42.127.856.187 1.293.228.555.053 1.11.06 1.667.06h11.03a12.5 12.5 0 001.57-.1c.822-.106 1.596-.35 2.295-.81a5.046 5.046 0 001.88-2.207c.186-.42.293-.87.37-1.324.113-.675.138-1.358.137-2.04-.002-3.8 0-7.595-.003-11.393zm-6.423 3.99v5.712c0 .417-.058.827-.244 1.206-.29.59-.76.962-1.388 1.14-.35.1-.706.157-1.07.173-.95.045-1.773-.6-1.943-1.536a1.88 1.88 0 011.038-2.022c.323-.16.67-.25 1.018-.324.378-.082.758-.153 1.134-.24.274-.063.457-.23.51-.516a.904.904 0 00.02-.193c0-1.815 0-3.63-.002-5.443a.725.725 0 00-.026-.185c-.04-.15-.15-.243-.304-.234-.16.01-.318.035-.475.066-.76.15-1.52.303-2.28.456l-2.325.47-1.374.278c-.016.003-.032.01-.048.013-.277.077-.377.203-.39.49-.002.042 0 .086 0 .13-.002 2.602 0 5.204-.003 7.805 0 .42-.047.836-.215 1.227-.278.64-.77 1.04-1.434 1.233-.35.1-.71.16-1.075.172-.96.036-1.755-.6-1.92-1.544-.14-.812.23-1.685 1.154-2.075.357-.15.73-.232 1.108-.31.287-.06.575-.116.86-.177.383-.083.583-.323.6-.714v-.15c0-2.96 0-5.922.002-8.882 0-.123.013-.25.042-.37.07-.285.273-.448.546-.518.255-.066.515-.112.774-.165.733-.15 1.466-.296 2.2-.444l2.27-.46c.67-.134 1.34-.27 2.01-.403.22-.043.442-.088.663-.106.31-.025.523.17.554.482.008.073.012.148.012.223.002 1.91.002 3.822 0 5.732z"/></symbol>
+    <symbol id="i-openai" viewBox="0 0 24 24"><path fill="currentColor" d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></symbol>
+    <symbol id="i-netflix" viewBox="0 0 24 24"><path fill="currentColor" d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></symbol>
+    <symbol id="i-ton" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zM7.902 6.697h8.196c1.505 0 2.462 1.628 1.705 2.94l-5.059 8.765a.86.86 0 0 1-1.488 0L6.199 9.637c-.758-1.314.197-2.94 1.703-2.94zm4.844 1.496v7.58l1.102-2.128 2.656-4.756a.465.465 0 0 0-.408-.696h-3.35zM7.9 8.195a.464.464 0 0 0-.408.694l2.658 4.754 1.102 2.13V8.195H7.9z"/></symbol>
+    <symbol id="i-tether" viewBox="0 0 24 24"><path fill="currentColor" d="M18.7538 10.5176c0 .6251-2.2379 1.1483-5.2381 1.2812l.0028.0007c-.0848.0064-.5233.0325-1.5012.0325-.7778 0-1.33-.0233-1.5237-.0325-3.0059-.1322-5.2495-.6555-5.2495-1.2819s2.2436-1.149 5.2495-1.2834v2.0442c.1965.0142.7594.0474 1.5372.0474.9334 0 1.4008-.0389 1.4849-.0466V9.2356c2.9994.1337 5.2381.657 5.2381 1.282zm5.19.5466L12.1248 22.389a.1803.1803 0 0 1-.2496 0L.0562 11.0635a.1781.1781 0 0 1-.0382-.2079l4.3762-9.1921a.1767.1767 0 0 1 .1626-.1026h14.8878a.1768.1768 0 0 1 .1612.1032l4.3762 9.1922a.1782.1782 0 0 1-.0382.2079zm-4.478-.4038c0-.8068-2.5515-1.4799-5.9473-1.6369V7.195h4.186V4.4055H6.3076V7.195h4.1852v1.8286c-3.4018.1562-5.9601.83-5.9601 1.6376 0 .8075 2.5583 1.4806 5.9601 1.6376v5.8618h3.025v-5.8639c3.394-.1563 5.948-.8295 5.948-1.6363z"/></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><path fill="currentColor" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3" fill="currentColor"/><rect x="2" y="8.4" width="20" height="2.7" fill="rgba(10,16,26,.42)"/><rect x="5" y="14.2" width="6" height="1.8" rx=".9" fill="rgba(10,16,26,.42)"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><polygon fill="currentColor" points="12,1.8 14.6,8.4 21.7,9 16.3,13.9 17.9,20.9 12,17.2 6.1,20.9 7.7,13.9 2.3,9 9.4,8.4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.6l7.4 2.9v5.2c0 4.8-3.2 8.7-7.4 10.9-4.2-2.2-7.4-6.1-7.4-10.9V5.5L12 2.6z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M8.7 11.9l2.3 2.3 4.3-4.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66L13 3h1l-1 7h3.5c.49 0 .56.33.47.51L11 21z"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c-5 0-9 3.1-9 7 0 2.2 1.3 4.2 3.3 5.5L5.6 19.9a.72.72 0 0 0 1.03.83l3.55-1.97c.59.11 1.2.17 1.82.17 5 0 9-3.12 9-7s-4-6.93-9-6.93z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1.8c1.4 5.6 4.6 8.8 10.2 10.2-5.6 1.4-8.8 4.6-10.2 10.2C10.6 16.6 7.4 13.4 1.8 12 7.4 10.6 10.6 7.4 12 1.8z"/></symbol>
+    <!-- v24: иконки полнофункционального магазина -->
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2L12 3z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M4 7.4l8 4.1 8-4.1M12 11.5V21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4.8 20.2c1.1-3.4 3.9-5.2 7.2-5.2s6.1 1.8 7.2 5.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M15 6.5V5.5A2.5 2.5 0 0 0 12.5 3h-6A2.5 2.5 0 0 0 4 5.5v9A2.5 2.5 0 0 0 6.5 17h1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 6.8V12l3.4 2.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 3.5V7h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-checkmark" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="5.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="18.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.4 10.8l6.8-4M8.4 13.2l6.8 4" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="14.5" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 11v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 10h17M8 2.8V6.5M16 2.8V6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><path d="M4 11h16v9.2a1.3 1.3 0 0 1-1.3 1.3H5.3A1.3 1.3 0 0 1 4 20.2V11z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M3 7.2h18V11H3zM12 7.2V21.5M12 7S9.2 7 8 5.8a2 2 0 0 1 2.9-2.8C12.2 4.2 12 7 12 7zm0 0s2.8 0 4-1.2a2 2 0 0 0-2.9-2.8C11.8 4.2 12 7 12 7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M11.2 12.3L20 3.5M16.5 7l2.8 2.8M14 9.5l2.4 2.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-arrow-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 13.5V18a2.5 2.5 0 0 1-2.5 2.5h-10A2.5 2.5 0 0 1 4 18V8a2.5 2.5 0 0 1 2.5-2.5H11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+</defs></svg>
+<!-- ICON_SPRITE_END -->
+
+<!-- ═══ Top bar ═══ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L21 7v10l-9 5-9-5V7l9-5z" stroke="url(#lg)" stroke-width="2" stroke-linejoin="round"/><path d="M12 8l4.5 2.6v5.2L12 18.4l-4.5-2.6v-5.2L12 8z" fill="url(#lg)" opacity=".85"/><defs><linearGradient id="lg" x1="3" y1="2" x2="21" y2="22"><stop stop-color="#1EAEFB"/><stop offset="1" stop-color="#378EE5"/></linearGradient></defs></svg>
+    </div>
+    <span class="brand-name" id="storeName">SUBSTORE</span>
+  </div>
+  <div class="top-actions">
+    <span class="top-status" title="Магазин работает">
+      <span class="live-dot" aria-hidden="true"></span>ONLINE
+    </span>
+    <button class="icon-btn top-nav" id="navOrders" aria-label="Мои заказы">
+      <svg class="ico"><use href="#i-box" xlink:href="#i-box"></use></svg>
+    </button>
+    <button class="icon-btn top-nav" id="navProfile" aria-label="Профиль">
+      <svg class="ico"><use href="#i-user" xlink:href="#i-user"></use></svg>
+    </button>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ═══════════════ ЭКРАН: КАТАЛОГ ═══════════════ -->
+  <section class="screen screen-active" id="screen-catalog">
+
+    <!-- Hero в стиле ton.org -->
+    <div class="hero">
+      <div class="kicker">Цифровые подписки · Индия</div>
+      <h1 class="hero-title">Премиум-подписки.<br>Цены из Индии</h1>
+      <p class="hero-sub">Официальные тарифы Spotify, YouTube, Netflix и других сервисов. Активация на вашем аккаунте за 5–15 минут.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" id="btnScrollCatalog">Выбрать подписку</button>
+        <button class="btn btn-ghost" id="btnHow">Как это работает</button>
+      </div>
+      <!-- Стат-пилюли в стиле ton.org -->
+      <div class="stats" id="statsRow">
+        <div class="stat-pill"><b id="statServices">—</b><span>сервисов</span></div>
+        <div class="stat-pill"><b id="statFrom">$—</b><span>в месяц</span></div>
+        <div class="stat-pill"><b>5–15</b><span>мин активация</span></div>
+        <div class="stat-pill"><b>24/7</b><span>поддержка</span></div>
+      </div>
+    </div>
+
+    <!-- Каталог -->
+    <div class="section-head" id="catalogAnchor">
+      <h2 class="section-title">Каталог</h2>
+      <span class="section-hint" id="catalogCount"></span>
+    </div>
+
+    <div class="svc-list" id="svcList">
+      <!-- Скелетоны (заменяются после загрузки) -->
+      <div class="svc-skel"><div class="skel-icon skel"></div><div class="skel-lines"><div class="skel skel-line w60"></div><div class="skel skel-line w40"></div></div></div>
+      <div class="svc-skel"><div class="skel-icon skel"></div><div class="skel-lines"><div class="skel skel-line w60"></div><div class="skel skel-line w40"></div></div></div>
+      <div class="svc-skel"><div class="skel-icon skel"></div><div class="skel-lines"><div class="skel skel-line w60"></div><div class="skel skel-line w40"></div></div></div>
+      <div class="svc-skel"><div class="skel-icon skel"></div><div class="skel-lines"><div class="skel skel-line w60"></div><div class="skel skel-line w40"></div></div></div>
+      <div class="svc-skel"><div class="skel-icon skel"></div><div class="skel-lines"><div class="skel skel-line w60"></div><div class="skel skel-line w40"></div></div></div>
+    </div>
+
+    <!-- Доверие -->
+    <div class="trust" id="trustBlock">
+      <div class="trust-item"><span class="trust-ico"><svg class="ico"><use href="#i-shield" xlink:href="#i-shield"></use></svg></span><div><b>Гарантия</b><span>замена или возврат</span></div></div>
+      <div class="trust-item"><span class="trust-ico"><svg class="ico"><use href="#i-bolt" xlink:href="#i-bolt"></use></svg></span><div><b>Быстро</b><span>активация 5–15 минут</span></div></div>
+      <div class="trust-item"><span class="trust-ico"><svg class="ico"><use href="#i-chat" xlink:href="#i-chat"></use></svg></span><div><b>Поддержка</b><span>отвечаем 24/7</span></div></div>
+    </div>
+
+    <footer class="foot">
+      <a href="#" id="offerLink" target="_blank" rel="noopener">Оферта</a>
+      <span class="foot-dot">·</span>
+      <a href="#" id="supportLink">Поддержка</a>
+      <span class="foot-dot">·</span>
+      <span id="footYear">2026</span>
+    </footer>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: СЕРВИС ═══════════════ -->
+  <section class="screen" id="screen-service">
+    <div class="svc-head">
+      <button class="icon-btn" id="btnBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title">Тарифы</span>
+      <span style="width:40px"></span>
+    </div>
+
+    <div class="svc-hero" id="svcHero">
+      <div class="svc-hero-icon" id="svcHeroIcon">🎵</div>
+      <div class="svc-hero-info">
+        <h2 class="svc-hero-name" id="svcHeroName">—</h2>
+        <p class="svc-hero-desc" id="svcHeroDesc">—</p>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2 class="section-title">Выберите тариф</h2>
+    </div>
+    <div class="plan-list" id="planList"></div>
+
+    <!-- Липкая панель оформления -->
+    <div class="order-bar" id="orderBar">
+      <div class="order-total">
+        <span class="order-total-label">Итого</span>
+        <span class="order-total-price" id="orderTotal">$—</span>
+      </div>
+      <button class="btn btn-primary btn-order" id="btnOrder">Оформить заказ</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: ОФОРМЛЕНИЕ ═══════════════ -->
+  <section class="screen" id="screen-checkout">
+    <div class="svc-head">
+      <button class="icon-btn" id="coBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title">Оформление</span>
+      <span style="width:40px"></span>
+    </div>
+
+    <div class="order-card" id="coCard"><!-- строки заказа (JS) --></div>
+
+    <div class="promo-box" id="promoBox">
+      <div class="promo-row">
+        <input id="promoInput" class="input" placeholder="Промокод" autocomplete="off" autocapitalize="characters">
+        <button class="btn btn-ghost promo-apply" id="promoApply">Применить</button>
+      </div>
+      <div class="promo-hint" id="promoHint"></div>
+    </div>
+
+    <div class="section-head">
+      <h2 class="section-title">Способ оплаты</h2>
+      <span class="section-hint" id="coHint"></span>
+    </div>
+    <div class="method-list" id="methodList"></div>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: ОПЛАТА ═══════════════ -->
+  <section class="screen" id="screen-pay">
+    <div class="svc-head">
+      <button class="icon-btn" id="payBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title">Оплата</span>
+      <span style="width:40px"></span>
+    </div>
+
+    <div class="pay-head" id="payHead"><!-- иконка метода + сумма --></div>
+    <div class="pay-timer" id="payTimer" hidden>
+      <svg class="ico"><use href="#i-clock" xlink:href="#i-clock"></use></svg>
+      <span id="payTimerText">—</span>
+    </div>
+    <div class="pay-body" id="payBody"><!-- реквизиты/CTA (JS) --></div>
+    <div class="pay-actions" id="payActions"></div>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: СТАТУС ЗАКАЗА ═══════════════ -->
+  <section class="screen" id="screen-status">
+    <div class="svc-head">
+      <button class="icon-btn" id="stBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title" id="stTitle">Заказ</span>
+      <span style="width:40px"></span>
+    </div>
+
+    <div class="stepper" id="stStepper"><!-- шаги (JS) --></div>
+    <div class="status-body" id="stBody"><!-- состояние (JS) --></div>
+    <div class="status-actions" id="stActions"></div>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: МОИ ЗАКАЗЫ ═══════════════ -->
+  <section class="screen" id="screen-orders">
+    <div class="svc-head">
+      <button class="icon-btn" id="ordBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title">Мои заказы</span>
+      <span style="width:40px"></span>
+    </div>
+    <div class="orders-list" id="ordersList"></div>
+  </section>
+
+  <!-- ═══════════════ ЭКРАН: ПРОФИЛЬ ═══════════════ -->
+  <section class="screen" id="screen-profile">
+    <div class="svc-head">
+      <button class="icon-btn" id="profBack" aria-label="Назад">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="svc-head-title">Профиль</span>
+      <span style="width:40px"></span>
+    </div>
+    <div id="profileBody"></div>
+  </section>
+</main>
+
+<!-- Демо-плашка (вне Telegram) -->
+<div class="demo-badge" id="demoBadge" hidden>DEMO — превью дизайна, покупки отключены</div>
+
+<!-- Демо-шлюз (v27): приложение открыто вне Telegram -->
+<div class="demo-gate" id="demoGate" hidden>
+  <div class="demo-gate-card">
+    <div class="demo-gate-glow"></div>
+    <svg class="ico demo-gate-logo"><use href="#i-bolt" xlink:href="#i-bolt"></use></svg>
+    <h2>Магазин работает внутри Telegram</h2>
+    <p>
+      Это веб-превью — здесь можно посмотреть каталог и дизайн.
+      Заказы и оплата (Gram / USDT / карта / Stars) доступны
+      в магазине Telegram — открой его одной кнопкой.
+    </p>
+    <a class="btn btn-primary demo-gate-cta" id="demoGateOpen" href="#" rel="noopener">
+      <svg class="ico"><use href="#i-arrow-out" xlink:href="#i-arrow-out"></use></svg>
+      Открыть магазин в Telegram
+    </a>
+    <button class="btn btn-ghost demo-gate-ghost" id="demoGatePreview" type="button">
+      Смотреть витрину
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

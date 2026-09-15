@@ -1,0 +1,245 @@
+{
+  "services": [
+    {
+      "id": "spotify_premium",
+      "name": "Spotify Premium",
+      "emoji": "🎵",
+      "custom_emoji_id": "5318925977978422395",
+      "description": "Музыка без рекламы, оффлайн-слушание, высокое качество звука. Активация на индийском аккаунте.",
+      "plans": [
+        {
+          "id": "standard_1m",
+          "name": "Standard — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 4.5
+        },
+        {
+          "id": "platinum_1m",
+          "name": "Platinum — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 10
+        },
+        {
+          "id": "annual",
+          "name": "Standard — 12 месяцев",
+          "duration_days": 365,
+          "price_usdt": 35
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "email",
+          "label": "Email/Логин Spotify",
+          "placeholder": "example@email.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "youtube_premium",
+      "name": "YouTube Premium",
+      "emoji": "▶️",
+      "custom_emoji_id": "5454010052421626926",
+      "description": "YouTube без рекламы, фоновое воспроизведение, YouTube Music. Активация на индийском аккаунте.",
+      "plans": [
+        {
+          "id": "individual_1m",
+          "name": "Individual — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 7
+        },
+        {
+          "id": "family_1m",
+          "name": "Family — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 13
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "email",
+          "label": "Email Google-аккаунта",
+          "placeholder": "example@gmail.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "apple_music",
+      "name": "Apple Music",
+      "emoji": "🍎",
+      "custom_emoji_id": "5454160054154442353",
+      "description": "Доступ к 100 млн треков, оффлайн, без рекламы, Spatial Audio. Активация на индийском аккаунте.",
+      "plans": [
+        {
+          "id": "individual_1m",
+          "name": "Individual — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 5
+        },
+        {
+          "id": "family_1m",
+          "name": "Family — 1 месяц (до 6 чел.)",
+          "duration_days": 30,
+          "price_usdt": 13
+        },
+        {
+          "id": "annual",
+          "name": "Individual — 12 месяцев",
+          "duration_days": 365,
+          "price_usdt": 40
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "apple_id",
+          "label": "Apple ID (Email)",
+          "placeholder": "example@icloud.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль Apple ID",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "chatgpt_plus",
+      "name": "ChatGPT Plus",
+      "emoji": "🤖",
+      "custom_emoji_id": "5370673908624152847",
+      "description": "GPT-4o, GPT-4, DALL-E, приоритетный доступ, плагины. Активация на индийском аккаунте.",
+      "plans": [
+        {
+          "id": "go_1m",
+          "name": "Go — 1 месяц (базовый GPT)",
+          "duration_days": 30,
+          "price_usdt": 17
+        },
+        {
+          "id": "plus_1m",
+          "name": "Plus — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 45
+        },
+        {
+          "id": "PRO_1m",
+          "name": "PRO — 1 месяц",
+          "duration_days": 30,
+          "price_usdt": 260
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "email",
+          "label": "Email OpenAI",
+          "placeholder": "example@email.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "netflix",
+      "name": "Netflix",
+      "emoji": "🎬",
+      "custom_emoji_id": "5454132338730479251",
+      "description": "Стриминг фильмов и сериалов. Активация на индийском аккаунте.",
+      "plans": [
+        {
+          "id": "mobile_1m",
+          "name": "Mobile — 1 месяц (1 устройство, 480p)",
+          "duration_days": 30,
+          "price_usdt": 6
+        },
+        {
+          "id": "basic_1m",
+          "name": "Basic — 1 месяц (1 устройство, 720p)",
+          "duration_days": 30,
+          "price_usdt": 8
+        },
+        {
+          "id": "standard_1m",
+          "name": "Standard — 1 месяц (2 устройства, 1080p)",
+          "duration_days": 30,
+          "price_usdt": 16
+        },
+        {
+          "id": "premium_1m",
+          "name": "Premium — 1 месяц (4 устройства, 4K+HDR)",
+          "duration_days": 30,
+          "price_usdt": 22
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "email",
+          "label": "Email Netflix",
+          "placeholder": "example@email.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "test",
+      "name": "Test",
+      "emoji": "😀",
+      "custom_emoji_id": "5370677602296027711",
+      "description": "test",
+      "plans": [
+        {
+          "id": "plan_1d_8937",
+          "name": "1 день",
+          "duration_days": 1,
+          "price_usdt": 0.12,
+          "price": 12
+        }
+      ],
+      "account_fields": [
+        {
+          "id": "email",
+          "label": "Email/Логин",
+          "placeholder": "example@email.com",
+          "type": "email"
+        },
+        {
+          "id": "password",
+          "label": "Пароль",
+          "placeholder": "Ваш пароль",
+          "type": "password"
+        }
+      ],
+      "active": true
+    }
+  ]
+}
