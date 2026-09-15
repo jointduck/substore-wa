@@ -129,8 +129,12 @@ METHOD_NAMES = {
 
 # ─── Валидация initData ────────────────────────────────────────────
 
-def validate_init_data(init_data: str, bot_token: str = BOT_TOKEN) -> dict | None:
-    """Проверить подпись Telegram initData. Вернуть user-словарь или None.
+def validate_init_data_ex(init_data: str, bot_token: str = BOT_TOKEN) -> tuple[dict | None, str | None]:
+    """Проверить initData → (user, None) | (None, "expired") | (None, "invalid").
+
+    expired = подпись валидна, но initData старше INITDATA_MAX_AGE (Mini App
+    долго был открыт) — фронту надо молча перезагрузиться: Telegram при
+    перезагрузке выдаёт свежий initData. invalid = подпись/формат битые.
 
     Алгоритм из офиц. доков (core.telegram.org/bots/webapps):
     secret = HMAC-SHA256(key="WebAppData", msg=bot_token)
@@ -139,7 +143,7 @@ def validate_init_data(init_data: str, bot_token: str = BOT_TOKEN) -> dict | Non
     значения в исходном (urlencoded) виде, разделитель '\n'.
     """
     if not init_data or not bot_token:
-        return None
+        return None, "invalid"
 
     received_hash = None
     pairs: list[tuple[str, str]] = []
@@ -153,7 +157,7 @@ def validate_init_data(init_data: str, bot_token: str = BOT_TOKEN) -> dict | Non
             pairs.append((key, value))
 
     if not received_hash or not pairs:
-        return None
+        return None, "invalid"
 
     pairs.sort(key=lambda kv: kv[0])
     data_check_string = "\n".join(f"{k}={v}" for k, v in pairs)
@@ -161,30 +165,44 @@ def validate_init_data(init_data: str, bot_token: str = BOT_TOKEN) -> dict | Non
     secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
     calc_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(calc_hash, received_hash):
-        return None
+        return None, "invalid"
 
     # Свежесть подписи — защита от replay старых initData
     raw = dict(pairs)
     try:
         auth_date = int(raw.get("auth_date", "0"))
     except ValueError:
-        return None
+        return None, "invalid"
     if auth_date < time.time() - INITDATA_MAX_AGE:
-        return None
+        return None, "expired"
 
     try:
         user = json.loads(unquote(raw.get("user", "")))
     except (json.JSONDecodeError, ValueError):
         return None
     if not isinstance(user, dict) or not user.get("id"):
-        return None
-    return user
+        return None, "invalid"
+    return user, None
+
+
+def validate_init_data(init_data: str, bot_token: str = BOT_TOKEN) -> dict | None:
+    """Совместимая обёртка: только user или None (без причины)."""
+    return validate_init_data_ex(init_data, bot_token)[0]
 
 
 # ─── Мелкие помощники ──────────────────────────────────────────────
 
 def _err(status: int, message: str):
     return web.json_response({"ok": False, "error": message}, status=status)
+
+
+def _auth_err(reason: str | None):
+    """401 для TMA. expired=true — фронту можно молча перезагрузиться
+    (свежий initData), иначе подпись реально битая."""
+    payload = {"ok": False, "error": "Сессия устарела. Переоткройте магазин через бота."}
+    if reason == "expired":
+        payload["expired"] = True
+    return web.json_response(payload, status=401)
 
 
 def _rate_limited(user_id: int) -> bool:
@@ -230,9 +248,9 @@ async def _auth_order(request: web.Request, body: dict) -> tuple[dict | None, di
 
     Возвращает (user, order, None) при успехе или (None, None, ответ-ошибку).
     """
-    user = validate_init_data(str(body.get("initData", "")))
+    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
     if not user:
-        return None, None, _err(401, "Сессия устарела. Переоткройте магазин через бота.")
+        return None, None, _auth_err(_reason)
 
     try:
         order_id = int(str(request.match_info.get("order_id", "")))
@@ -286,8 +304,10 @@ async def api_session(request: web.Request) -> web.Response:
     if body is None:
         return _err(400, "Ожидался JSON")
 
-    user = validate_init_data(str(body.get("initData", "")))
+    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
     if not user:
+        if _reason == "expired":
+            return _auth_err(_reason)
         return _err(401, "Не удалось подтвердить личность. Откройте магазин через бота.")
 
     user_id = int(user["id"])
@@ -339,9 +359,9 @@ async def api_order(request: web.Request) -> web.Response:
     if body is None:
         return _err(400, "Ожидался JSON")
 
-    user = validate_init_data(str(body.get("initData", "")))
+    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
     if not user:
-        return _err(401, "Сессия устарела. Переоткройте магазин через бота.")
+        return _auth_err(_reason)
 
     user_id = int(user["id"])
     if _rate_limited(user_id):
@@ -542,9 +562,9 @@ async def api_orders_list(request: web.Request) -> web.Response:
     body = await _read_body(request)
     if body is None:
         return _err(400, "Ожидался JSON")
-    user = validate_init_data(str(body.get("initData", "")))
+    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
     if not user:
-        return _err(401, "Сессия устарела. Переоткройте магазин через бота.")
+        return _auth_err(_reason)
 
     try:
         limit = min(int(body.get("limit", 20)), 50)
@@ -1186,9 +1206,9 @@ async def api_profile(request: web.Request) -> web.Response:
     body = await _read_body(request)
     if body is None:
         return _err(400, "Ожидался JSON")
-    user = validate_init_data(str(body.get("initData", "")))
+    user, _reason = validate_init_data_ex(str(body.get("initData", "")))
     if not user:
-        return _err(401, "Сессия устарела. Переоткройте магазин через бота.")
+        return _auth_err(_reason)
 
     user_id = int(user["id"])
     bot_username = request.app["bot_username"]

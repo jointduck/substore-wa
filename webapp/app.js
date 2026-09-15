@@ -217,13 +217,41 @@
   function api(path, opts) {
     opts = opts || {};
     var ctl = new AbortController();
-    var timer = setTimeout(function () { ctl.abort(); }, 15000);
+    var timer = setTimeout(function () { ctl.abort(); }, opts.timeout || 15000);
     opts.signal = ctl.signal;
     opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
     return fetch(path, opts).then(function (r) {
       clearTimeout(timer);
       return r.json().catch(function () { return { ok: false, error: "Некорректный ответ сервера" }; });
+    }).then(function (res) {
+      /* v27: initData старше 60 мин → сервер говорит expired — молча
+         перезагружаемся: Telegram при перезагрузке выдаёт свежий initData */
+      if (res && res.expired) handleSessionExpired();
+      return res;
     }).finally(function () { clearTimeout(timer); });
+  }
+
+  /* v27: сессия устарела (Mini App был открыт дольше часа). Telegram
+     при перезагрузке страницы выдаёт свежий initData — перезагружаемся.
+     Защита от цикла: не чаще раза в 90 с; на экранах оплаты/статуса
+     запоминаем заказ, чтобы после перезагрузки вернуться на него. */
+  var REAUTH_KEY = "tmaReauthAt", RESTORE_KEY = "tmaRestoreOrder";
+  function handleSessionExpired() {
+    if (DEMO) return;
+    var now = Date.now();
+    var last = 0;
+    try { last = parseInt(sessionStorage.getItem(REAUTH_KEY) || "0", 10) || 0; } catch (e) {}
+    if (now - last < 90000) {
+      toast("Сессия устарела — закройте магазин и откройте заново через бота", 4200);
+      return;
+    }
+    try { sessionStorage.setItem(REAUTH_KEY, String(now)); } catch (e) {}
+    var act = document.querySelector(".screen-active");
+    if (act && (act.id === "screen-pay" || act.id === "screen-status" || act.id === "screen-checkout") && state.orderId) {
+      try { sessionStorage.setItem(RESTORE_KEY, String(state.orderId)); } catch (e) {}
+    }
+    toast("Сессия устарела — обновляю…", 1500);
+    setTimeout(function () { location.reload(); }, 700);
   }
 
   function copyText(text, okMsg) {
@@ -1337,11 +1365,34 @@
   }
 
   /* ── Сессия + каталог ── */
+  var catSkeletonHTML = null;
+  function renderCatalogError() {
+    var list = $("svcList");
+    list.innerHTML =
+      '<div class="cat-error">' +
+      '<b>Не удалось загрузить каталог</b>' +
+      '<span>Проверьте интернет и попробуйте ещё раз — сервер мог «просыпаться» (бесплатный Render отвечает до минуты).</span>' +
+      '<button class="btn btn-primary" id="catRetry" type="button">Повторить</button>' +
+      "</div>";
+    var r = $("catRetry");
+    if (r) r.addEventListener("click", function () { haptic("light"); loadSession(); });
+  }
+
   function loadSession() {
     /* v26: тонкая полоска загрузки, пока тянем каталог */
     document.body.classList.add("is-loading");
     var done = function () { document.body.classList.remove("is-loading"); };
-    api("/api/catalog").then(function (res) {
+    /* v27: Render Free просыпается 30–60 с — таймаут каталога 45 с,
+       на 8-й секунде объясняем юзеру, что происходит */
+    var woke = false;
+    var wakeTimer = setTimeout(function () {
+      if (!woke) toast("Сервер просыпается — это может занять до минуты…", 4200);
+    }, 8000);
+    var catList = $("svcList");
+    if (catSkeletonHTML === null) catSkeletonHTML = catList.innerHTML;
+    else catList.innerHTML = catSkeletonHTML; /* ретрай: вернуть скелетоны */
+    api("/api/catalog", { timeout: 45000 }).then(function (res) {
+      woke = true; clearTimeout(wakeTimer);
       done();
       if (res && res.ok && Array.isArray(res.services)) {
         state.services = res.services.filter(function (s) { return s.active !== false; });
@@ -1352,11 +1403,12 @@
         watchCustomEmoji();
         maybeOpenDeepLink();
       } else {
-        toast("Каталог временно недоступен");
+        renderCatalogError();
       }
     }).catch(function () {
+      woke = true; clearTimeout(wakeTimer);
       done();
-      toast("Не удалось загрузить каталог");
+      renderCatalogError();
     });
 
     if (DEMO) {
@@ -1373,6 +1425,18 @@
       state.cfg.offer_url = res.offer_url || state.cfg.offer_url;
       if (res.config) state.config = Object.assign(state.config, res.config);
       applyCfg();
+      /* v27: возврат на заказ, на котором юзер находился до перезагрузки
+         из-за устаревшей сессии (только если deep link ничего не открыл) */
+      var restoreOid = 0;
+      try {
+        restoreOid = parseInt(sessionStorage.getItem(RESTORE_KEY) || "0", 10) || 0;
+        if (restoreOid) sessionStorage.removeItem(RESTORE_KEY);
+      } catch (e) {}
+      if (restoreOid > 0) {
+        var act = document.querySelector(".screen-active");
+        if (act && act.id === "screen-catalog") goStatus(restoreOid);
+        return;
+      }
       if (res.welcome_discount && res.welcome_discount.discount_pct > 0) {
         toast("🎉 Скидка " + res.welcome_discount.discount_pct + "% на первый заказ!", 3400);
       }

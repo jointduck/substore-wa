@@ -1138,6 +1138,27 @@ async def _health_ok(request):
     return web.Response(text="ok")
 
 
+# v27: корень больше не «пустой ok» — люди, открывшие URL сервиса на Render,
+# сразу попадают в магазин. Машинам (health-check платформы) по-прежнему
+# 200 на / и /health; людям — авто-переход на /app/.
+_ROOT_HTML = (
+    "<!doctype html><html lang=ru><meta charset=utf-8>"
+    "<meta name=viewport content='width=device-width,initial-scale=1'>"
+    "<meta http-equiv=refresh content='0;url=./app/'>"
+    "<title>SUBSTORE</title>"
+    "<body style=\"margin:0;font-family:system-ui;background:#0f1c2e;"
+    "color:#e8f1fb;display:flex;min-height:100vh;align-items:center;"
+    "justify-content:center\">"
+    "<p>Открываем магазин… <a href='./app/' style='color:#5eb1ff'>"
+    "открыть вручную</a></p>"
+)
+
+
+async def _root_ok(request):
+    from aiohttp import web
+    return web.Response(text=_ROOT_HTML, content_type="text/html")
+
+
 async def start_health_server(bot=None):
     from aiohttp import web
     port = int(os.getenv("PORT", "0") or 0)
@@ -1146,7 +1167,7 @@ async def start_health_server(bot=None):
         return
     app = web.Application()
     app["bot"] = bot
-    app.router.add_get("/", _health_ok)
+    app.router.add_get("/", _root_ok)
     app.router.add_get("/health", _health_ok)
 
     # v23: Mini App — статика (/app/) и API (/api/*) в том же приложении.
