@@ -184,6 +184,7 @@
     pollTimer: null,  // поллинг статуса заказа
     payPoll: null,    // поллинг заказа на экране оплаты
     tickTimer: null,  // таймер обратного отсчёта
+    rubRate: 0,       // v27.7: курс USDT→RUB с сервера — цены в рублях
     /* v27.3: серверный токен сессии (7 дней) — авторизует запросы,
        когда мобильный Telegram подсовывает старый initData */
     sessionToken: (function () {
@@ -200,6 +201,24 @@
   }
   function usd(v) { return "$" + Number(v).toFixed(2); }
   function rub(v) { return Number(v).toLocaleString("ru-RU") + " ₽"; }
+  /* v27.7: цены в рублях — курс приходит с сервера (/api/catalog,
+     /api/session). USDT остаётся вторичной валютой: крипту всё равно
+     переводят в USDT/Gram, а карты платят в рублях. */
+  function rubUsdt(v) {
+    return state.rubRate > 0 ? rub(Math.round(v * state.rubRate)) : usd(v);
+  }
+  function usdtAlt(v) {
+    return state.rubRate > 0 ? '<span class="oc-alt">≈ ' + Number(v).toFixed(2) + " USDT</span>" : "";
+  }
+  function perDayStr(v, days) {
+    var d = Math.max(1, days);
+    if (state.rubRate > 0) {
+      var pd = (v * state.rubRate) / d;
+      pd = pd >= 100 ? Math.round(pd) : Math.round(pd * 10) / 10;
+      return "~" + pd.toLocaleString("ru-RU") + " ₽/день";
+    }
+    return "~" + usd(v / d) + "/день";
+  }
   function haptic(kind) {
     if (!tg || !tg.HapticFeedback) return;
     try { tg.HapticFeedback.impactOccurred(kind || "light"); } catch (e) {}
@@ -458,7 +477,7 @@
         '<div class="svc-icon">' + svcIconHTML(svc) + "</div>" +
         '<div class="svc-info">' +
           '<div class="svc-name">' + esc(svc.name) + "</div>" +
-          '<div class="svc-meta">' + (svc.plans || []).length + " тарифа · от <b>" + usd(min) + "</b></div>" +
+          '<div class="svc-meta">' + (svc.plans || []).length + " тарифа · от <b>" + rubUsdt(min) + "</b></div>" +
         "</div>" +
         '<div class="svc-chev">' + iconTag("chev") + '</div>';
       el.addEventListener("click", function () { haptic("light"); openService(svc); });
@@ -473,7 +492,7 @@
     state.services.forEach(function (s) {
       (s.plans || []).forEach(function (p) { if (p.price_usdt < minAll) minAll = p.price_usdt; });
     });
-    if (isFinite(minAll)) countUp($("statFrom"), minAll, usd, 750);
+    if (isFinite(minAll)) countUp($("statFrom"), minAll, rubUsdt, 750);
   }
 
   /* ── Экран сервиса ── */
@@ -495,7 +514,6 @@
     var list = $("planList");
     list.innerHTML = "";
     (svc.plans || []).forEach(function (p, i) {
-      var perDay = p.price_usdt / Math.max(1, p.duration_days);
       var el = document.createElement("button");
       el.className = "plan" + (i === 0 ? " plan-selected" : "");
       el.setAttribute("data-plan", p.id);
@@ -503,9 +521,9 @@
         '<div class="plan-radio"></div>' +
         '<div class="plan-info">' +
           '<div class="plan-name">' + esc(p.name) + "</div>" +
-          '<div class="plan-sub">' + p.duration_days + " дн. · ~" + usd(perDay) + "/день</div>" +
+          '<div class="plan-sub">' + p.duration_days + " дн. · " + perDayStr(p.price_usdt, p.duration_days) + "</div>" +
         "</div>" +
-        '<div class="plan-price">' + usd(p.price_usdt) + "</div>";
+        '<div class="plan-price">' + rubUsdt(p.price_usdt) + "</div>";
       el.addEventListener("click", function () {
         haptic("light");
         state.planId = p.id;
@@ -533,8 +551,8 @@
 
   function updateTotal() {
     var p = selectedPlan();
-    /* v26: цена меняется с анимированным счётчиком */
-    countUp($("orderTotal"), p ? p.price_usdt : 0, usd, 420);
+    /* v26: цена меняется с анимированным счётчиком; v27.7 — в рублях */
+    countUp($("orderTotal"), p ? p.price_usdt : 0, rubUsdt, 420);
   }
 
   /* ── Оформление заказа: создание ── */
@@ -582,6 +600,8 @@
       body: JSON.stringify({ initData: tg.initData })
     }).then(function (res) {
       if (res && res.ok && res.order) {
+        /* v27.7: курс с заказа — актуализируем рублёвые цены */
+        if (res.rub_rate > 0) state.rubRate = res.rub_rate;
         state.order = res.order;
         state.orderId = res.order.order_id;
         if (cb) cb(res.order);
@@ -616,7 +636,7 @@
     var hasOrig = o.original_price_usdt && o.original_price_usdt > o.price_usdt;
     if (hasOrig) {
       rows += '<div class="oc-row"><span>Стоимость</span><b><span class="oc-dash">' +
-        usd(o.original_price_usdt) + "</span>" + usd(o.price_usdt) + "</b></div>";
+        rubUsdt(o.original_price_usdt) + "</span>" + rubUsdt(o.price_usdt) + "</b></div>";
       rows += '<div class="oc-row"><span>Скидка</span><b style="color:var(--green)">−' +
         o.discount_pct + "%</b></div>";
     }
@@ -625,9 +645,10 @@
     }
     if (o.bonus_applied > 0) {
       rows += '<div class="oc-row"><span>Бонус за друзей</span><b style="color:var(--green)">−' +
-        usd(o.bonus_applied) + "</b></div>";
+        rubUsdt(o.bonus_applied) + "</b></div>";
     }
-    rows += '<div class="oc-row oc-total"><span>К оплате</span><b>' + usd(o.price_usdt) + "</b></div>";
+    rows += '<div class="oc-row oc-total"><span>К оплате</span><b>' + rubUsdt(o.price_usdt) +
+      usdtAlt(o.price_usdt) + "</b></div>";
     rows += '<div class="oc-note">После оплаты введите данные аккаунта — активация обычно занимает 5–15 минут.</div>';
     $("coCard").innerHTML = rows;
 
@@ -857,14 +878,14 @@
         '<div class="pay-note">' + iconTag("shield") + "<div>Оплата подтверждается автоматически, обычно за 1–2 минуты.</div></div>";
     } else if (p.method === "card" && p.provider === "tribute") {
       payHead("card", "Оплата картой", "Сумма: <b>" + rub(p.rub_price) + "</b>" +
-        (p.price_usdt ? " · " + usd(p.price_usdt) : ""));
+        (p.price_usdt && state.rubRate <= 0 ? " · " + usd(p.price_usdt) : ""));
       $("payBody").innerHTML =
         '<div class="pay-note">' + iconTag("bolt") + "<div>Оплата откроется прямо в Telegram — карты, СБП и другие способы. После оплаты подписка подтверждается автоматически в течение минуты.</div></div>" +
         '<div class="pay-note">' + iconTag("clock") + "<div>Оплата действительна 60 минут после перехода на страницу оплаты.</div></div>";
     } else {
       // Digiseller после создания ссылки
       payHead("card", "Оплата картой", "Сумма: <b>" + rub(p.rub_price) + "</b>" +
-        (p.price_usdt ? " · " + usd(p.price_usdt) : ""));
+        (p.price_usdt && state.rubRate <= 0 ? " · " + usd(p.price_usdt) : ""));
       $("payBody").innerHTML =
         '<div class="pay-note">' + iconTag("bolt") + "<div>Перейдите по кнопке ниже и оплатите картой. Чек придёт на указанный email.</div></div>" +
         '<div class="pay-note">' + iconTag("clock") + "<div>Оплата действительна 60 минут после перехода на страницу оплаты.</div></div>";
@@ -907,7 +928,7 @@
 
   /* Digiseller: шаг ввода email */
   function renderPayEmail() {
-    payHead("card", "Оплата картой", "Сумма: <b>" + usd((state.order || {}).price_usdt || 0) + "</b>");
+    payHead("card", "Оплата картой", "Сумма: <b>" + rubUsdt((state.order || {}).price_usdt || 0) + "</b>");
     $("payTimer").hidden = true;
     $("payBody").innerHTML =
       '<div class="pay-email">' +
@@ -932,7 +953,7 @@
   /* Stars */
   function renderPayStars(p) {
     payHead("stars", "Telegram Stars", "Сумма: <b>" + p.stars + " Stars</b>" +
-      (p.price_usdt ? " · " + usd(p.price_usdt) : ""));
+      (p.price_usdt ? " · " + rubUsdt(p.price_usdt) : ""));
     $("payTimer").hidden = true;
     $("payBody").innerHTML =
       '<div class="pay-note">' + iconTag("bolt") + "<div>Подтвердите счёт в открывшемся окне Telegram. Оплата зачисляется автоматически в течение секунды.</div></div>";
@@ -1070,7 +1091,7 @@
     var rows = '<div class="st-rows">' +
       '<div class="st-row"><span>Подписка</span><b>' + esc(o.service_name) + " — " + esc(o.plan_name) + "</b></div>" +
       '<div class="st-row"><span>Срок</span><b>' + o.duration_days + " дн.</b></div>" +
-      '<div class="st-row"><span>К оплате</span><b>' + usd(o.price_usdt) +
+      '<div class="st-row"><span>К оплате</span><b>' + rubUsdt(o.price_usdt) +
         (o.discount_pct > 0 ? " · −" + o.discount_pct + "%" : "") + "</b></div>" +
       (o.note ? '<div class="st-row"><span>Действует</span><b>' + esc(o.note) + "</b></div>" : "") +
       "</div>";
@@ -1262,6 +1283,8 @@
         $("ordersList").innerHTML = '<div class="orders-empty">' + iconTag("info") + "Не удалось загрузить заказы</div>";
         return;
       }
+      /* v27.7: курс из списка заказов — цены строк в рублях */
+      if (res.rub_rate > 0) state.rubRate = res.rub_rate;
       var list = res.orders || [];
       if (!list.length) {
         $("ordersList").innerHTML =
@@ -1291,7 +1314,7 @@
             (o.note ? " · " + esc(o.note) : "") + "</div>" +
         "</div>" +
         '<div class="order-row-side">' +
-          '<div class="order-row-price">' + usd(o.price_usdt) + "</div>" +
+          '<div class="order-row-price">' + rubUsdt(o.price_usdt) + "</div>" +
           '<span class="chip ' + meta.cls + '">' + esc(meta.label) + "</span>" +
         "</div>";
       el.addEventListener("click", function () { haptic("light"); goStatus(o.order_id); });
@@ -1313,6 +1336,8 @@
         $("profileBody").innerHTML = '<div class="orders-empty">' + iconTag("info") + "Не удалось загрузить профиль</div>";
         return;
       }
+      /* v27.7: курс из профиля — бонус/рефералка в рублях */
+      if (res.rub_rate > 0) state.rubRate = res.rub_rate;
       renderProfile(res);
     }).catch(function () {
       $("profileBody").innerHTML = '<div class="orders-empty">' + iconTag("info") + "Нет связи с сервером</div>";
@@ -1322,6 +1347,7 @@
 
   function renderProfile(p) {
     var html = "";
+    var hasRub = state.rubRate > 0; /* v27.7: бонус/рефералка тоже в рублях */
 
     if (p.welcome_discount && p.welcome_discount.discount_pct > 0) {
       html += '<div class="prof-banner reveal" style="--rd:0ms">' +
@@ -1332,25 +1358,31 @@
 
     html += '<div class="prof-card reveal" style="--rd:60ms">' +
       '<div class="prof-card-head">' + iconTag("wallet") + "<b>Бонусный счёт</b></div>" +
-      '<div class="bonus-num">' + p.bonus_balance.toFixed(2) + "<small>USDT</small></div>" +
+      (hasRub
+        ? '<div class="bonus-num">' + Math.round(p.bonus_balance * state.rubRate).toLocaleString("ru-RU") + "<small>₽</small></div>"
+        : '<div class="bonus-num">' + p.bonus_balance.toFixed(2) + "<small>USDT</small></div>") +
       '<div class="bonus-sub">Бонусы автоматически вычитаются из стоимости следующего заказа' +
-      (p.bonus_reserved > 0 ? ". Сейчас зарезервировано живыми заказами: " + p.bonus_reserved.toFixed(2) + " USDT" : "") +
+      (hasRub ? " (≈ " + p.bonus_balance.toFixed(2) + " USDT)" : "") +
+      (p.bonus_reserved > 0 ? ". Сейчас зарезервировано живыми заказами: " + rubUsdt(p.bonus_reserved) : "") +
       ".</div></div>";
 
     var ref = p.referral || {};
     if (ref.link) {
       var shareUrl = "https://t.me/share/url?url=" + encodeURIComponent(ref.link) +
         "&text=" + encodeURIComponent("Дешёвые подписки в этом боте — заходи!");
+      var bpf = ref.bonus_per_friend || 0.5;
       html += '<div class="prof-card reveal" style="--rd:120ms">' +
         '<div class="prof-card-head">' + iconTag("gift") + "<b>Пригласи друга — получи бонус</b></div>" +
         '<div class="bonus-sub">Друг оплачивает подписку по твоей ссылке — тебе начисляется <b>' +
-          (ref.bonus_per_friend || 0.5).toFixed(2) + ' USDT</b> бонусом.</div>' +
+          (hasRub ? rubUsdt(bpf) : bpf.toFixed(2) + " USDT") + "</b> бонусом.</div>" +
         '<div class="ref-link"><span>' + esc(ref.link) + "</span>" +
           '<button class="ref-btn" id="refCopy">' + iconTag("copy") + "Копировать</button>" +
           '<button class="ref-btn" id="refShare">' + iconTag("share") + "Поделиться</button></div>" +
         '<div class="ref-stats">' +
           '<div class="ref-stat"><b>' + (ref.invited || 0) + "</b><span>приглашено друзей</span></div>" +
-          '<div class="ref-stat"><b>' + (ref.earned || 0).toFixed(2) + "</b><span>заработано, USDT</span></div>" +
+          '<div class="ref-stat"><b>' +
+            (hasRub ? Math.round((ref.earned || 0) * state.rubRate).toLocaleString("ru-RU") : (ref.earned || 0).toFixed(2)) +
+            "</b><span>заработано, " + (hasRub ? "₽" : "USDT") + "</span></div>" +
         "</div></div>";
       html += '<script type="application/json" id="refData">' + JSON.stringify({ link: ref.link, share: shareUrl }) + "<\/script>";
     }
@@ -1413,6 +1445,9 @@
       done();
       if (res && res.ok && Array.isArray(res.services)) {
         state.services = res.services.filter(function (s) { return s.active !== false; });
+        /* v27.7: курс USDT→RUB — до рендера каталога, чтобы цены
+           сразу отрисовались в рублях */
+        if (res.rub_rate > 0) state.rubRate = res.rub_rate;
         /* v27: публичный username бота — для демо-шлюза «Открыть в Telegram» */
         if (res.bot_username) state.cfg.bot_username = res.bot_username;
         /* v27.2: маркер версии — в консоли телефона/компа видно, какой
@@ -1449,6 +1484,8 @@
       state.cfg.store_name = res.store_name || state.cfg.store_name;
       state.cfg.offer_url = res.offer_url || state.cfg.offer_url;
       if (res.config) state.config = Object.assign(state.config, res.config);
+      /* v27.7: курс мог обновиться — синхронизируем из session-конфига */
+      if (res.config && res.config.rub_rate > 0) state.rubRate = res.config.rub_rate;
       applyCfg();
       /* v27: возврат на заказ, на котором юзер находился до перезагрузки
          из-за устаревшей сессии (только если deep link ничего не открыл) */

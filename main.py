@@ -16,7 +16,7 @@ from aiogram.types import ErrorEvent
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from config import BOT_TOKEN, PROXY_URL, ADMIN_IDS, CATALOG_PATH, APP_VERSION
-from config import TON_CHECK_INTERVAL
+from config import TON_CHECK_INTERVAL, WEBAPP_URL, KEEPALIVE_ENABLED, KEEPALIVE_INTERVAL_SEC
 from models.database import db
 from handlers.user_handlers import router as user_router
 from handlers.support_handlers import router as support_router
@@ -1228,6 +1228,58 @@ async def start_health_server(bot=None):
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     logger.info(f"Health server listening on 0.0.0.0:{port} — port check satisfied")
+
+    # v27.5: анти-сон Render Free (см. _keepalive_loop)
+    if KEEPALIVE_ENABLED and WEBAPP_URL:
+        asyncio.create_task(_keepalive_loop())
+        logger.info(
+            f"Keep-alive: включён — пинг {WEBAPP_URL}/health каждые "
+            f"{max(300, KEEPALIVE_INTERVAL_SEC) // 60} мин (Free-план не заснёт)"
+        )
+    else:
+        logger.info(
+            "Keep-alive: выключен (KEEPALIVE=off или WEBAPP_URL пуст) — "
+            "на Free-плане используйте внешний пингер (UptimeRobot/cron-job.org)"
+        )
+
+
+async def _keepalive_loop(interval: int | None = None) -> None:
+    """v27.5: не даём Render Free «заснуть».
+
+    Платформа глушит сервис без ВХОДЯЩЕГО HTTP-трафика ~15 минут; при этом
+    останавливается и процесс — поллинг Telegram умирает вместе с ним, бот
+    перестаёт отвечать. Loopback-запросы счётчик простоя не сбрасывают, поэтому
+    пингуем СВОЙ публичный URL (WEBAPP_URL/health): такой запрос проходит
+    через прокси платформы и сбрасывает таймер. Первый пинг через ~30 с после
+    старта, дальше раз в interval (по умолчанию 10 мин — вдвое чаще лимита).
+    На 750 бесплатных часов/мес это ложится: один всегда-живой сервис ≈ 730 ч.
+    Ошибки сети не роняют цикл — повтор на следующей итерации.
+    """
+    import aiohttp  # локально, как и весь aiohttp-импорт в этом блоке
+
+    if interval is None:
+        interval = max(300, int(KEEPALIVE_INTERVAL_SEC))
+    url = f"{WEBAPP_URL.rstrip('/')}/health"
+    first = True
+    ok_logged = False
+    while True:
+        await asyncio.sleep(min(30, interval) if first else interval)
+        first = False
+        try:
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(timeout=timeout) as s:
+                async with s.get(url) as r:
+                    await r.read()
+            if not ok_logged:
+                logger.info(f"Keep-alive: {url} отвечает — сервис не уснёт")
+                ok_logged = True
+        except Exception as e:
+            if not ok_logged:
+                logger.warning(
+                    f"Keep-alive: {url} недоступен ({e}) — повтор через "
+                    f"{interval // 60} мин; проверьте WEBAPP_URL"
+                )
+                ok_logged = True
 
 
 async def main():

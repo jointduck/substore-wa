@@ -261,12 +261,21 @@ AUTO_RENEWAL_REMINDER_HOURS = int(os.getenv("AUTO_RENEWAL_REMINDER_HOURS", "72")
 # раньше (магазин доступен только по прямой ссылке).
 WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
 
+# v27.5: встроенный анти-сон для Render Free. Платформа глушит сервис без
+# входящего HTTP-трафика 15 минут — вместе с ним останавливается поллинг
+# и бот «умирает». Пока PORT задан (хостинг) и WEBAPP_URL заполнен,
+# бот сам пингует свой публичный /health раз в 10 минут — такие запросы
+# проходят через прокси платформы и сбрасывают таймер простоя.
+# Отключить: KEEPALIVE=off. Интервал: KEEPALIVE_INTERVAL_SEC (сек, мин 300).
+KEEPALIVE_ENABLED = os.getenv("KEEPALIVE", "on").strip().lower() in ("on", "1", "true", "yes")
+KEEPALIVE_INTERVAL_SEC = int(os.getenv("KEEPALIVE_INTERVAL_SEC", "600"))
+
 # Название магазина — показывается в шапке Mini App и в ответе /api/session.
 STORE_NAME = os.getenv("STORE_NAME", "SUBSTORE").strip() or "SUBSTORE"
 
 # Версия релиза — отдаётся в /health и /api/catalog. Быстрая проверка,
 # что на хостинге крутится именно свежий код: откройте /health в браузере.
-APP_VERSION = os.getenv("APP_VERSION", "27.4").strip() or "27.4"
+APP_VERSION = os.getenv("APP_VERSION", "27.8").strip() or "27.8"
 
 # Drip-напоминания (1ч/24ч/72ч для непокупавших) приходят только юзерам,
 # зарегистрированным НЕ старее этого срока. Старая база «мёртвых» юзеров

@@ -55,6 +55,7 @@ from config import (
     PROMO_CODE_ENABLED,
     STARS_PER_USDT,
     STORE_NAME,
+    USDT_RUB_RATE,
 )
 from config import ENABLED_PAYMENT_METHODS
 from models.database import db, load_catalog, get_service_by_id, get_plan_from_service
@@ -390,6 +391,21 @@ async def _rub(usdt_amount: float) -> float:
         return 0.0
 
 
+async def _rub_rate() -> float:
+    """Текущий курс USDT→RUB — фронтенду для отображения цен в рублях (v27.7).
+
+    Живой курс с кэшем (usdt_to_rub); если источники недоступны —
+    константа USDT_RUB_RATE из конфига, чтобы цены никогда не были нулевыми.
+    """
+    try:
+        rate = float(await usdt_to_rub(1))
+        if rate > 0:
+            return rate
+    except Exception:
+        pass
+    return float(USDT_RUB_RATE)
+
+
 async def _auth_order(request: web.Request, body: dict) -> tuple[dict | None, dict | None, web.Response | None]:
     """Общий вход для /api/order/{id}/*: initData + заказ + владение.
 
@@ -427,6 +443,8 @@ async def api_catalog(request: web.Request) -> web.Response:
         "services": active,
         "bot_username": request.app["bot_username"],
         "version": APP_VERSION,
+        # v27.7: курс для показа цен в рублях (каталог рендерится первым)
+        "rub_rate": await _rub_rate(),
     })
 
 
@@ -473,6 +491,10 @@ async def api_session(request: web.Request) -> web.Response:
     except Exception:
         pass
 
+    # v27.7: курс USDT→RUB в конфиге — фронтенд показывает цены в рублях
+    pay_cfg = _pay_config()
+    pay_cfg["rub_rate"] = await _rub_rate()
+
     return web.json_response({
         "ok": True,
         "user": {
@@ -488,7 +510,7 @@ async def api_session(request: web.Request) -> web.Response:
         "offer_url": "https://disk.yandex.ru/i/HWpCZ1blH8fyUw",
         "welcome_discount": {"discount_pct": welcome["discount_pct"]} if welcome else None,
         "bonus_balance": round(bonus_balance, 2),
-        "config": _pay_config(),
+        "config": pay_cfg,
     })
 
 
@@ -706,7 +728,12 @@ async def api_order_info(request: web.Request) -> web.Response:
         return err
 
     service = get_service_by_id(order.get("service_id", ""))
-    return web.json_response({"ok": True, "order": _order_view(order, service)})
+    return web.json_response({
+        "ok": True,
+        "order": _order_view(order, service),
+        # v27.7: курс для показа цены заказа в рублях
+        "rub_rate": await _rub_rate(),
+    })
 
 
 async def api_orders_list(request: web.Request) -> web.Response:
@@ -731,6 +758,8 @@ async def api_orders_list(request: web.Request) -> web.Response:
             "order_id": o["order_id"],
             "service_name": o.get("service_name", ""),
             "plan_name": o.get("plan_name", ""),
+            # v27.8: duration_days нужен фронту («30 дн.» в строке истории)
+            "duration_days": int(o.get("duration_days") or 0),
             "price_usdt": float(o.get("price_usdt") or 0),
             "discount_pct": round(float(o.get("discount_pct") or 0), 1),
             "status": eff,
@@ -738,7 +767,7 @@ async def api_orders_list(request: web.Request) -> web.Response:
             "created_at": str(o.get("created_at") or "")[:16],
             "note": subscription_note(o),
         })
-    return web.json_response({"ok": True, "orders": rows})
+    return web.json_response({"ok": True, "orders": rows, "rub_rate": await _rub_rate()})
 
 
 # ─── Хендлеры: промокод (как apply_promo) ──────────────────────────
@@ -1396,6 +1425,7 @@ async def api_profile(request: web.Request) -> web.Response:
         "welcome_discount": {"discount_pct": welcome["discount_pct"]} if welcome else None,
         "bonus_balance": round(balance, 2),
         "bonus_reserved": round(reserved, 2),
+        "rub_rate": await _rub_rate(),
         "referral": {
             "code": code,
             "link": link,

@@ -81,25 +81,9 @@ tg-emoji img { width: 100%; height: 100%; }
 .brand-name {
   font-size: 16px; font-weight: 800; letter-spacing: .04em;
 }
-.top-status {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 700; letter-spacing: .1em;
-  color: var(--green);
-  padding: 6px 10px; border-radius: 999px;
-  background: rgba(38, 161, 123, .1);
-  border: 1px solid rgba(38, 161, 123, .3);
-}
-.live-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 0 rgba(38, 161, 123, .5);
-  animation: pulse 2.2s infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(38, 161, 123, .45); }
-  70% { box-shadow: 0 0 0 7px rgba(38, 161, 123, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(38, 161, 123, 0); }
-}
+
+/* v27.6: бейдж «ONLINE» в шапке убран по решению владельца
+   (.top-status / .live-dot / @keyframes pulse удалены) */
 
 /* ═══ Экраны ═══ */
 .screen {
@@ -568,6 +552,11 @@ tg-emoji img { width: 100%; height: 100%; }
 .oc-row.oc-total span { color: var(--text2); font-weight: 700; }
 .oc-row.oc-total b { font-size: 17px; color: var(--blue2); font-variant-numeric: tabular-nums; }
 .oc-dash { text-decoration: line-through; color: var(--text3); font-weight: 600; margin-right: 7px; }
+/* v27.7: вторичный эквивалент в USDT под рублёвой суммой */
+.oc-alt {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text3);
+  letter-spacing: 0; margin-top: 1px;
+}
 .oc-note { padding: 10px 0 13px; font-size: 12.5px; color: var(--text3); line-height: 1.45; }
 
 /* ═══ Промокод ═══ */
@@ -826,21 +815,22 @@ tg-emoji img { width: 100%; height: 100%; }
 .bonus-num small { font-size: 14px; color: var(--text3); font-weight: 700; margin-left: 4px; }
 .bonus-sub { font-size: 12.5px; color: var(--text2); margin-top: 4px; line-height: 1.45; }
 .ref-link {
-  display: flex; align-items: stretch; gap: 0;
+  /* v27.7: кнопки уходят под ссылку — раньше они сжимали ссылку
+     до вертикального столбика на узких экранах */
+  display: flex; flex-wrap: wrap; gap: 8px;
   background: var(--bg2); border: 1px solid var(--line);
-  border-radius: var(--r-md); overflow: hidden; margin-top: 12px;
+  border-radius: var(--r-md); padding: 8px; margin-top: 12px;
 }
 .ref-link span {
-  flex: 1; min-width: 0; padding: 11px 13px;
+  flex: 1 1 100%; padding: 8px 10px 6px;
   font-size: 12.5px; color: var(--text2);
   overflow-wrap: anywhere; word-break: break-all;
 }
 .ref-btn {
   appearance: none; cursor: pointer; border: 0; font-family: inherit;
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 14px; min-height: 44px;
+  flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 14px; min-height: 42px; border-radius: var(--r-sm);
   background: rgba(55, 142, 229, .12); color: var(--blue2);
-  border-left: 1px solid var(--line);
   font-size: 13px; font-weight: 700;
 }
 .ref-btn:active { background: rgba(55, 142, 229, .24); }
